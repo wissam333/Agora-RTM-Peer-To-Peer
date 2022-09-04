@@ -1,19 +1,9 @@
 <template>
   <div class="chattingBody">
+    <h3 class="friend_name">{{ friend }}</h3>
+    <hr />
     <div id="chat" class="chat">
-      <h3 class="friend_name">{{ friend }}</h3>
       <div class="person">
-        <form id="loginForm">
-          <div>
-            <div class="login" style="margin-top: 0px; margin-bottom: 0px">
-              <div
-                class="content"
-                style="margin-bottom: 0px; margin-top: 10px"
-              ></div>
-            </div>
-          </div>
-        </form>
-        <hr />
         <div id="log" class="log">
           <div class="message__chat">
             <div class="message__outer">
@@ -39,6 +29,8 @@
           type="text"
           placeholder="peer message"
           id="peerMessage"
+          autocomplete="off"
+          @focusin="scrollToBottom()"
         />
         <input
           class="sendMessage btn btn-success"
@@ -153,9 +145,20 @@ export default {
 .chattingBody {
   position: relative;
   width: 100%;
+  .friend_name {
+    color: #fff;
+    background-color: #000;
+    text-align: center;
+    margin: 0;
+    padding: 20px;
+    font-size: 4vw;
+    @media (max-width: 991px) {
+      font-size: 8vw;
+    }
+  }
   .chat {
     width: 80%;
-    height: 80vh;
+    height: 60vh;
     margin: auto;
     background-color: rgb(0 0 0 / 63%);
     border: 1px solid #fff;
@@ -173,16 +176,6 @@ export default {
       -webkit-border-radius: 15px;
       border-radius: 15px;
       background: #283046;
-    }
-    .friend_name {
-      color: #fff;
-      text-align: center;
-      margin: 0;
-      padding: 20px;
-      font-size: 4vw;
-      @media (max-width: 991px) {
-        font-size: 8vw;
-      }
     }
     .log {
       color: #fff;
@@ -273,7 +266,7 @@ export default {
   }
   .input-field {
     position: absolute;
-    bottom: 0;
+    bottom: -36px;
     width: 100%;
     text-align: center;
     form {
