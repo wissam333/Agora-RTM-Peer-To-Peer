@@ -1,10 +1,12 @@
-import { fileURLToPath, URL } from "node:url";
+import { fileURLToPath, URL } from "url";
 
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: "/Agora-RTM-Peer-To-Peer/",
+  assetsDir: "assets",
   plugins: [vue()],
   resolve: {
     alias: {

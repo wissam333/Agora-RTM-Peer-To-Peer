@@ -45,6 +45,7 @@
           @click="
             send_peer_message();
             clearValue();
+            scrollToBottom();
           "
           type="button"
           id="send_peer_message"
@@ -91,11 +92,32 @@ export default {
     ...mapState(nameStore, ["name", "friend"]),
   },
   async mounted() {
+    // Get the input field
+    let input = document.getElementById("peerMessage");
+
+    // Execute a function when the user presses a key on the keyboard
+    input.addEventListener("keypress", function (event) {
+      // If the user presses the "Enter" key on the keyboard
+      if (event.key === "Enter") {
+        // Cancel the default action, if needed
+        event.preventDefault();
+        // Trigger the button element with a click
+        document.getElementById("send_peer_message").click();
+      }
+    });
     //login
     options.uid = this.name;
     await client.login(options);
   },
   methods: {
+    scrollToBottom: function () {
+      function gobottom() {
+        let chatHistory = document.getElementById("chat");
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+      }
+      setTimeout(gobottom, 500);
+    },
+    //send
     send_peer_message: async function () {
       //the 3 main variables
       let peerId = this.friend;
@@ -129,10 +151,11 @@ export default {
 </script>
 <style lang="scss">
 .chattingBody {
+  position: relative;
   width: 100%;
   .chat {
     width: 80%;
-    height: 90vh;
+    height: 80vh;
     margin: auto;
     background-color: rgb(0 0 0 / 63%);
     border: 1px solid #fff;
@@ -249,7 +272,8 @@ export default {
     border-radius: 0.25rem;
   }
   .input-field {
-    position: fixed;
+    position: absolute;
+    bottom: 0;
     width: 100%;
     text-align: center;
     form {
@@ -267,7 +291,7 @@ export default {
         background: #000000cc;
         color: #fff;
         border: 1px solid #fff;
-        &:hover{
+        &:hover {
           color: #000;
           background-color: #fff;
         }
