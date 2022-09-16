@@ -8,6 +8,7 @@
         type="text"
         placeholder="Your Name"
         id="username"
+        maxlength="9"
         v-model="username"
       />
 
@@ -16,6 +17,7 @@
         type="text"
         placeholder="Friend Name"
         id="Friend"
+        maxlength="9"
         v-model="FriendName"
       />
 

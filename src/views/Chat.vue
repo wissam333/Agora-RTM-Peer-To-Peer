@@ -1,7 +1,19 @@
 <template>
   <div class="chattingBody">
-    <h3 class="friend_name">{{ friend }}</h3>
-    <hr />
+    <div class="friend_name">
+      <div class="name">
+        <h3>{{ friend }}</h3>
+        <span :class="online == true ? 'connected' : ''"></span>
+      </div>
+      <!--music-->
+      <div class="music" @click="play()">
+        <font-awesome-icon icon="fa-solid fa-music" />
+        <span id="musicText"> Music?</span>
+        <audio id="music">
+          <source src="../assets/The-Macarons-Project-Fly-Me-To-T.mp3" />
+        </audio>
+      </div>
+    </div>
     <div id="chat" class="chat">
       <div class="person">
         <div id="log" class="log">
@@ -32,7 +44,7 @@
           autocomplete="off"
           @focusin="scrollToBottom()"
         />
-        <input
+        <button
           class="sendMessage btn btn-success"
           @click="
             send_peer_message();
@@ -41,8 +53,10 @@
           "
           type="button"
           id="send_peer_message"
-          value="SEND"
-        />
+        >
+          <b>Send </b>
+          <font-awesome-icon icon="fa-solid fa-paper-plane" />
+        </button>
       </form>
     </div>
   </div>
@@ -51,39 +65,38 @@
 import AgoraRTM from "agora-rtm-sdk";
 import { nameStore } from "../stores/counter";
 import { mapState } from "pinia";
-
-let options = {
-  uid: "",
-  token: "d460c130220e4941a265909240fe0088",
-};
 // appid from agora.io
 const appID = "d460c130220e4941a265909240fe0088";
 const client = AgoraRTM.createInstance(appID);
-// Display Message From Peer
-client.on("MessageFromPeer", function (message) {
-  let str = JSON.stringify(message.text);
-  let hismessages = document.createElement("div");
-  document
-    .getElementById("message__inner")
-    .appendChild(hismessages)
-    .append(str.substr(1, str.length - 2));
-  hismessages.setAttribute("class", "message__bubble hismessages");
-});
-// Display connection state changes
-client.on("ConnectionStateChanged", function (state, reason) {
-  console.log("State changed To: " + state + " Reason: " + reason);
-});
+
 export default {
   name: "ChattingBody",
   data: function () {
     return {
       channel: "main",
+      musicOFF: true,
+      online: {},
+      timer: null,
     };
   },
   computed: {
     ...mapState(nameStore, ["name", "friend"]),
   },
   async mounted() {
+    // Display Message From Peer
+    client.on("MessageFromPeer", function (message) {
+      let str = JSON.stringify(message.text);
+      let hismessages = document.createElement("div");
+      document
+        .getElementById("message__inner")
+        .appendChild(hismessages)
+        .append(str.substr(1, str.length - 2));
+      hismessages.setAttribute("class", "message__bubble hismessages");
+    });
+    // Display connection state changes
+    client.on("ConnectionStateChanged", function (state, reason) {
+      console.log("State changed To: " + state + " Reason: " + reason);
+    });
     // Get the input field
     let input = document.getElementById("peerMessage");
 
@@ -97,11 +110,48 @@ export default {
         document.getElementById("send_peer_message").click();
       }
     });
+    let options = {
+      uid: "",
+      token: "d460c130220e4941a265909240fe0088",
+    };
     //login
     options.uid = this.name;
     await client.login(options);
+    //peer online/offline state
+    let thiss = this;
+    let friend = this.friend;
+    this.timer = setInterval(() => {
+      client.queryPeersOnlineStatus([friend]).then(
+        function (value) {
+          let peerStatus = Object.values(value).at(`${friend}`);
+          thiss.online = peerStatus;
+          console.log(peerStatus);
+        },
+        function (error) {
+          console.log(error);
+        }
+      );
+    }, 3000);
+  },
+  beforeDestroy() {
+    clearInterval(this.timer);
   },
   methods: {
+    //play song
+    play: function () {
+      let music = document.getElementById("music");
+      let musicText = document.getElementById("musicText");
+      if (this.musicOFF) {
+        music.play();
+        musicText.innerText = " Enjoy :>";
+        this.musicOFF = false;
+      } else {
+        music.pause();
+        musicText.innerText = " okay :<";
+        this.musicOFF = true;
+      }
+    },
+    //chat auto scrolling
     scrollToBottom: function () {
       function gobottom() {
         let chatHistory = document.getElementById("chat");
@@ -146,24 +196,70 @@ export default {
   position: relative;
   width: 100%;
   .friend_name {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
     color: #fff;
+    height: 15vh;
     background-color: #000;
-    text-align: center;
-    margin: 0;
-    padding: 20px;
-    font-size: 4vw;
-    @media (max-width: 991px) {
-      font-size: 8vw;
+    .name {
+      display: flex;
+      align-items: center;
+      h3 {
+        margin: 0;
+        padding: 15px;
+        font-size: 4vw;
+        @media (max-width: 991px) {
+          font-size: 8vw;
+        }
+      }
+      span {
+        display: block;
+        width: 25px;
+        height: 25px;
+        border-radius: 50%;
+        background-color: rgb(92, 92, 92);
+        &.connected {
+          background-color: green;
+        }
+        @media (max-width: 768px) {
+          width: 15px;
+          height: 15px;
+        }
+      }
+    }
+    .music {
+      margin: 20px;
+      font-size: 2vw;
+      font-weight: bold;
+      font-family: monospace;
+      cursor: pointer;
+      animation: light 2s infinite;
+      @keyframes light {
+        0% {
+          color: #7970e2;
+        }
+        50% {
+          color: #fff;
+        }
+        100% {
+          color: #7970e2;
+        }
+      }
+      @media (max-width: 991px) {
+        font-size: 6vw;
+      }
     }
   }
   .chat {
-    width: 80%;
-    height: 60vh;
+    width: 100%;
+    height: 75vh;
+    overflow-y: scroll;
     margin: auto;
     background-color: rgb(0 0 0 / 63%);
-    border: 1px solid #fff;
-    border-radius: 0.25rem;
-    overflow-y: scroll;
+    border-bottom: 1px solid #fff;
+    border-top: 1px solid #fff;
     /* Scrollbar Styling */
     &::-webkit-scrollbar {
       width: 8px;
@@ -265,20 +361,20 @@ export default {
     border-radius: 0.25rem;
   }
   .input-field {
-    position: absolute;
-    bottom: -36px;
+    height: 10vh;
     width: 100%;
     text-align: center;
     form {
-      input:nth-child(1) {
+      height: 100%;
+      background-color: rgb(0 0 0 / 63%);
+      input {
+        height: 80%;
         width: 70%;
         border-radius: 0;
         outline: 0;
-        @media (max-width: 768px) {
-          width: 50%;
-        }
       }
-      input:nth-child(2) {
+      .sendMessage {
+        height: 80%;
         width: 10%;
         padding: 8px;
         background: #000000cc;
