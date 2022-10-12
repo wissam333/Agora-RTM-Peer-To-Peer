@@ -16,6 +16,9 @@ import { faLinkedin } from "@fortawesome/free-brands-svg-icons";
 import { faMusic } from "@fortawesome/free-solid-svg-icons";
 import { faHeart } from "@fortawesome/free-solid-svg-icons";
 import { faPaperPlane } from "@fortawesome/free-solid-svg-icons";
+import { faVideo } from "@fortawesome/free-solid-svg-icons";
+import { faVolumeXmark } from "@fortawesome/free-solid-svg-icons";
+import { faVolumeHigh } from "@fortawesome/free-solid-svg-icons";
 
 /* add icons to the library */
 library.add(
@@ -24,8 +27,15 @@ library.add(
   faLinkedin,
   faMusic,
   faHeart,
-  faPaperPlane
+  faPaperPlane,
+  faVideo,
+  faVolumeHigh,
+  faVolumeXmark
 );
+
+//bootstrap
+import "bootstrap/dist/css/bootstrap.min.css";
+import "bootstrap";
 
 const app = createApp(App);
 app.component("font-awesome-icon", FontAwesomeIcon);

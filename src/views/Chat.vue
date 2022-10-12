@@ -1,19 +1,67 @@
 <template>
+  <!-- Incoming Call  -->
+  <div class="call" v-if="incomingCall">
+    <div class="col-12">
+      <!-- <p>Incoming Call From <strong>{{ incomingCaller }}</strong></p> -->
+      <p>{{ incomingCallNotification }}</p>
+      <div class="btn-group" role="group">
+        <button type="button" class="btn btn-danger mx-3" @click="decline()">
+          Decline
+        </button>
+        <router-link
+          type="button"
+          to="/video"
+          class="btn btn-success ml-5"
+          @click.native="
+            accept();
+            channelName();
+            createStreams();
+          "
+        >
+          Accept
+        </router-link>
+      </div>
+    </div>
+  </div>
+
+  <div class="calling" v-if="isCallingUser">
+    <div class="col-12">
+      <p>{{ callingUserNotification }}</p>
+      <!-- <p>You Are Calling <b>{{ friend }}</b></p> -->
+      <button type="button" class="btn btn-danger" @click="cancelCall()">
+        Cancel Call
+      </button>
+    </div>
+  </div>
+  <!-- End of Incoming Call  -->
   <div class="chattingBody">
     <div class="friend_name">
       <div class="name">
         <h3>{{ friend }}</h3>
-        <span :class="online == true ? 'connected' : ''"></span>
       </div>
       <!--music-->
-      <div class="music" @click="play()">
-        <font-awesome-icon icon="fa-solid fa-music" />
-        <span id="musicText"> Music?</span>
-        <audio id="music">
-          <source src="../assets/The-Macarons-Project-Fly-Me-To-T.mp3" />
-        </audio>
+      <div class="music-videoCall">
+        <div class="video-icon" @click="sendCall()">
+          <font-awesome-icon class="video" icon="fa-solid fa-video" />
+          <span :class="onlinestate == 'ONLINE' ? 'connected' : ''"></span>
+        </div>
+
+        <div class="music" @click="play()">
+          <font-awesome-icon
+            v-if="musicOFF == false"
+            icon="fa-solid fa-volume-high"
+          />
+          <font-awesome-icon
+            v-if="musicOFF == true"
+            icon="fa-solid fa-volume-xmark"
+          />
+          <audio id="music">
+            <source src="../assets/The-Macarons-Project-Fly-Me-To-T.mp3" />
+          </audio>
+        </div>
       </div>
     </div>
+
     <div id="chat" class="chat">
       <div class="person">
         <div id="log" class="log">
@@ -63,24 +111,34 @@
 </template>
 <script>
 import AgoraRTM from "agora-rtm-sdk";
-import { nameStore } from "../stores/counter";
-import { mapState } from "pinia";
-// appid from agora.io
-const appID = "d460c130220e4941a265909240fe0088";
-const client = AgoraRTM.createInstance(appID);
+import { RemoteInvitation } from "agora-rtm-sdk";
+import { LocalInvitation } from "agora-rtm-sdk";
+//pinia store
+import { store } from "../stores/counter";
+import { mapState, mapActions } from "pinia";
 
+// appid from agora.io for RTM
+const appID = "115d8311e4b84607baade3df97f63e11";
+const client = AgoraRTM.createInstance(appID);
 export default {
   name: "ChattingBody",
   data: function () {
     return {
-      channel: "main",
       musicOFF: true,
-      online: {},
-      timer: null,
+      onlinestate: "",
+      //call
+      remote: RemoteInvitation,
+      local: LocalInvitation,
+      incomingCall: false,
+      incomingCaller: "",
+      incomingCallNotification: "",
+      isCallingUser: false,
+      callingUserNotification: "",
+      //video chat
     };
   },
   computed: {
-    ...mapState(nameStore, ["name", "friend"]),
+    ...mapState(store, ["name", "friend"]),
   },
   async mounted() {
     // Display Message From Peer
@@ -112,47 +170,93 @@ export default {
     });
     let options = {
       uid: "",
-      token: "d460c130220e4941a265909240fe0088",
+      token: "115d8311e4b84607baade3df97f63e11",
     };
     //login
     options.uid = this.name;
     await client.login(options);
     //peer online/offline state
+    client.subscribePeersOnlineStatus([this.friend]);
     let thiss = this;
+    client.on("PeersOnlineStatusChanged", function (status) {
+      let friend = this.friend;
+      let peerStatus = Object.values(status).at(`${friend}`);
+      thiss.onlinestate = peerStatus;
+      console.log(peerStatus);
+    });
+
+    //call
+    client.on("RemoteInvitationReceived", (data) => {
+      this.remote = data;
+      this.incomingCall = true;
+      this.incomingCaller = data.callerId;
+      this.incomingCallNotification = `Incoming Call From ${data.callerId}`;
+
+      data.on("RemoteInvitationCanceled", () => {
+        console.log("RemoteInvitationCanceled: ");
+        this.incomingCallNotification = "Call has been cancelled";
+        setTimeout(() => {
+          this.incomingCall = false;
+        }, 5000);
+      });
+      data.on("RemoteInvitationAccepted", (data) => {
+        console.log("REMOTE INVITATION ACCEPTED: ", data);
+      });
+      data.on("RemoteInvitationRefused", (data) => {
+        console.log("REMOTE INVITATION REFUSED: ", data);
+      });
+      data.on("RemoteInvitationFailure", (data) => {
+        console.log("REMOTE INVITATION FAILURE: ", data);
+      });
+    });
+
+    //localInvitation
     let friend = this.friend;
-    this.timer = setInterval(() => {
-      client.queryPeersOnlineStatus([friend]).then(
-        function (value) {
-          let peerStatus = Object.values(value).at(`${friend}`);
-          thiss.online = peerStatus;
-          console.log(peerStatus);
-        },
-        function (error) {
-          console.log(error);
-        }
-      );
-    }, 3000);
-  },
-  beforeDestroy() {
-    clearInterval(this.timer);
+    this.local = client.createLocalInvitation(friend);
+    this.local.on("LocalInvitationAccepted", async (invitationData) => {
+      console.log("LOCAL INVITATION ACCEPTED: " + invitationData);
+      // Join a room using the channel name. The callee will also join the room then accept the call
+      this.$router.push("/video");
+      this.channelName();
+      this.createStreams();
+      //   await this.joinRoom(AGORA_APP_ID, data.token, videoChannelName);
+      this.isCallingUser = false;
+      this.callingUserNotification = "";
+    });
+    this.local.on("LocalInvitationCanceled", (data) => {
+      console.log("LOCAL INVITATION CANCELED: ", data);
+      this.callingUserNotification = `${friend} cancelled the call`;
+      setTimeout(() => {
+        this.isCallingUser = false;
+      }, 5000);
+    });
+    this.local.on("LocalInvitationRefused", (data) => {
+      console.log("LOCAL INVITATION REFUSED: ", data);
+      this.callingUserNotification = `${friend} refused the call`;
+      setTimeout(() => {
+        this.isCallingUser = false;
+      }, 5000);
+    });
+    this.local.on("LocalInvitationFailure", (data) => {
+      console.log("LOCAL INVITATION FAILURE: ", data);
+      this.callingUserNotification = "Call failed. Try Again";
+    });
   },
   methods: {
+    ...mapActions(store, ["createStreams", "channelName"]),
     //play song
-    play: function () {
+    play() {
       let music = document.getElementById("music");
-      let musicText = document.getElementById("musicText");
       if (this.musicOFF) {
         music.play();
-        musicText.innerText = " Enjoy :>";
         this.musicOFF = false;
       } else {
         music.pause();
-        musicText.innerText = " okay :<";
         this.musicOFF = true;
       }
     },
     //chat auto scrolling
-    scrollToBottom: function () {
+    scrollToBottom() {
       function gobottom() {
         let chatHistory = document.getElementById("chat");
         chatHistory.scrollTop = chatHistory.scrollHeight;
@@ -160,7 +264,7 @@ export default {
       setTimeout(gobottom, 500);
     },
     //send
-    send_peer_message: async function () {
+    async send_peer_message() {
       //the 3 main variables
       let peerId = this.friend;
       let peerMessage = document.getElementById("peerMessage").value.toString();
@@ -188,10 +292,46 @@ export default {
     clearValue: function () {
       document.getElementById("peerMessage").value = "";
     },
+
+    //calling
+    async sendCall() {
+      this.local.send();
+      this.isCallingUser = true;
+      this.callingUserNotification = `You Are Calling ${this.friend}`;
+    },
+    accept() {
+      this.remote.accept();
+    },
+    async cancelCall() {
+      await this.local.cancel();
+      this.isCallingUser = false;
+    },
+    decline() {
+      this.remote.refuse();
+      this.incomingCall = false;
+    },
   },
 };
 </script>
 <style lang="scss">
+.call {
+  position: fixed;
+  z-index: 6;
+  text-align: center;
+  background: #315c8ed4;
+  padding: 15px;
+  width: 100%;
+  color: #fff;
+}
+.calling {
+  position: fixed;
+  z-index: 6;
+  text-align: center;
+  background: #315c8ed4;
+  padding: 15px;
+  width: 100%;
+  color: #fff;
+}
 .chattingBody {
   position: relative;
   width: 100%;
@@ -211,44 +351,45 @@ export default {
         padding: 15px;
         font-size: 4vw;
         @media (max-width: 991px) {
-          font-size: 8vw;
-        }
-      }
-      span {
-        display: block;
-        width: 25px;
-        height: 25px;
-        border-radius: 50%;
-        background-color: rgb(92, 92, 92);
-        &.connected {
-          background-color: green;
-        }
-        @media (max-width: 768px) {
-          width: 15px;
-          height: 15px;
+          font-size: 6vw;
+          padding: 10px;
         }
       }
     }
-    .music {
-      margin: 20px;
-      font-size: 2vw;
-      font-weight: bold;
-      font-family: monospace;
+    .music-videoCall {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      margin: 15px;
       cursor: pointer;
-      animation: light 2s infinite;
-      @keyframes light {
-        0% {
-          color: #7970e2;
-        }
-        50% {
-          color: #fff;
-        }
-        100% {
-          color: #7970e2;
+      .video-icon {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        margin-right: 30px;
+        span {
+          display: block;
+          width: 25px;
+          height: 25px;
+          border-radius: 50%;
+          background-color: rgb(92, 92, 92);
+          &.connected {
+            background-color: green;
+          }
+          @media (max-width: 768px) {
+            width: 13px;
+            height: 13px;
+          }
         }
       }
-      @media (max-width: 991px) {
-        font-size: 6vw;
+      svg {
+        padding: 5px;
+        width: 30px;
+        height: 30px;
+        @media (max-width: 768px) {
+          width: 20px;
+          height: 20px;
+        }
       }
     }
   }
@@ -365,16 +506,13 @@ export default {
     width: 100%;
     text-align: center;
     form {
-      height: 100%;
       background-color: rgb(0 0 0 / 63%);
       input {
-        height: 80%;
         width: 70%;
         border-radius: 0;
         outline: 0;
       }
       .sendMessage {
-        height: 80%;
         width: 10%;
         padding: 8px;
         background: #000000cc;

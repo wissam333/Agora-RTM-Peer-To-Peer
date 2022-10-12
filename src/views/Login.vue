@@ -24,6 +24,8 @@
       <router-link
         to="/chat"
         @click="
+          trimUsername();
+          trimFriendName();
           changeName(username);
           changeFriendName(FriendName);
         "
@@ -35,7 +37,7 @@
   </div>
 </template>
 <script>
-import { nameStore } from "../stores/counter";
+import { store } from "../stores/counter";
 import { mapActions } from "pinia";
 export default {
   name: "login",
@@ -46,7 +48,13 @@ export default {
     };
   },
   methods: {
-    ...mapActions(nameStore, ["changeName", "changeFriendName"]),
+    ...mapActions(store, ["changeName", "changeFriendName"]),
+    trimUsername() {
+      this.username = this.username.trim().toLocaleLowerCase();
+    },
+    trimFriendName() {
+      this.FriendName = this.FriendName.trim().toLocaleLowerCase();
+    },
   },
 };
 </script>
